@@ -31,6 +31,8 @@ is my own original work.
 """
 import math
 from datetime import datetime
+import cube_checker
+from cube_checker import validate
 
 solved = False
 cube_arr = []
@@ -38,18 +40,19 @@ setup = ""
 sticker = 0
 undo = ""
 stick = ""
+run = 0
 
 #define which stickers on cube belong to which pieces
-pieces = {
-    0: [0, 4, 17],
-    1: [1, 13, 16],
-    2: [2, 12, 9],
-    3: [3, 5, 8],
-    4: [20, 6, 11],
-    5: [21, 15, 10],
-    6: [22, 14, 19],
-    7: [23, 7, 18]
-    }
+pieces = [
+    [0, 4, 17],
+    [1, 13, 16],
+    [2, 12, 9],
+    [3, 5, 8],
+    [20, 6, 11],
+    [21, 15, 10],
+    [22, 14, 19],
+    [23, 7, 18]
+    ]
 
 solved_cube = [
     'W','W','W','W','O','O','O','O','G','G','G','G','R','R','R','R','B','B','B','B','Y','Y','Y','Y']
@@ -72,12 +75,11 @@ swaps = [
 
 def check_if_solved(arr):
     
-    for piece in (pieces):
-        for sticker in (0, 2):
-            if (arr[pieces[piece][sticker]] != solved_cube[pieces[piece][sticker]]):
-                # if any sticker om the cube does not match sticker in same location of a solved cube
-                # then the cube must be unsolved
-                return False
+    for stick in range(0,24):
+        if solved_cube[stick] != cube_arr[stick]:
+            # if any sticker om the cube does not match sticker in same location of a solved cube
+            # then the cube must be unsolved
+            return False
                 
             
 def handle_twisted_buffer(arr):
@@ -90,17 +92,21 @@ def handle_twisted_buffer(arr):
     # so we have an unsolved piece in the buffer again, and continue as normal.
     
     for stick in range(0,24):
-        if solved_cube[stick] != cube_arr[stick]:
+        if solved_cube[stick] != cube_arr[stick] and stick != 0 and stick != 4 and stick != 17:
             break;
             
     sticker = stick
-    # voodoo magic time
-    # we know which sticker we can shoot to, since we just iterated to find an unsolved one
-    # but since we deal with solving pieces, we need to find a piece containing that sticker
-    # if we take the ceil of the sticker / 4, we are given a piece containing that sticker, which is what we need
-    pieceindexes = pieces[math.ceil(sticker / 4)]
     
-    solve_piece(cube_arr[pieceindexes[0]] + cube_arr[pieceindexes[1]] + cube_arr[pieceindexes[2]], cube_arr)
+    
+    #we found a sticker that is unsolved, now we iterate through the pieces array to find which piece the sticker belongs to
+    for x in range(0,8):
+        for i in range(0,3):
+            if pieces[x][i] == stick:
+                piece = x
+                break
+    
+    pieceindexes = pieces[piece]
+    solve_piece(solved_cube[pieceindexes[0]] + solved_cube[pieceindexes[1]] + solved_cube[pieceindexes[2]], cube_arr)
         
     
     return
@@ -116,12 +122,16 @@ def update_cube_state(sticker):
         
     
 def solve_piece(p, arr):
+    global run
     global cube_arr
     # take a certain piece on the cube as input and determine where it belongs
     # determines the setup moves required to move the sticker to the swap location
     global setup
     global undo
     global sticker
+    
+    if run == 10:
+        quit()
 
     
     
@@ -227,6 +237,8 @@ def solve_piece(p, arr):
     # move piece to swap location, swap buffer and piece, undo setup moves.
     print(f'  {setup} R U\' R\' U\' R U R\' F\' R U R\' U\' R\' F R {undo}')
     update_cube_state(sticker)
+    run = run + 1
+    return
     
     
 
@@ -238,20 +250,9 @@ def solve_cube(arr):
     print("   solution to your cube:")
     print("")
     
-    #if cube not solved
+    # this line here actually functions as error checking algorithm #1
+    # it jumps to the check_if_solved function, and verifies we only keep solving the cube if the cube is unsolved, and exits if it is.
     while(check_if_solved(arr) == False):
-        #print('Cube not solved, solving')
-        #print(arr)
-        #print(arr[pieces[0][0]] + arr[pieces[0][1]] + arr[pieces[0][2]])
-        
-        #while(check_if_solved(arr) == False):
-            # now we begin solving
-            # this solving method is basically the Old Pochmnann method:
-            # designate the top, back, left piece as a buffer through which all unsolved pieces will pass
-            # begin by solving just the sticker in the buffer using "setup + Y perm + undo_setup".
-            # (this swaps just that one corner with just one other)
-            # so simply loop solving the buffer until all corners are solved
-            
         solve_piece(arr[pieces[0][0]] + arr[pieces[0][1]] + arr[pieces[0][2]], arr)
         
     endtime = datetime.now()
@@ -260,6 +261,7 @@ def solve_cube(arr):
     print(f'   cube solved in {elapsed.microseconds / 1000000} seconds')
     print("   py_cubebot by tom o'donnell")
     print("   written for engr133 at purdue university")
+    return
 
 def main():
     global cube_arr
@@ -300,9 +302,16 @@ def main():
         #split cube_str by letters to get array with each element being 1 sticker
         cube_arr = [sticker for sticker in cube_str]
         
+        
+        # error checking algorithm #2
+        # calls an external file equipped to check if the user's input is likely to be correct
+        # makes sure that you only entered 24 stickers, and that there's exactly 4 of each color, and so on
+        if(validate(cube_arr) == False):
+            return
+        
         #cube array is set up, now we call solving function while passing cube array
         solve_cube(cube_arr)
-
+    return
 
 if __name__ == "__main__":
     main()
