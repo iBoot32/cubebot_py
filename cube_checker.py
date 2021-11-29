@@ -2,7 +2,7 @@
 ===============================================================================
 ENGR 13300 Fall 2021
 
-Program Description: Checks the solvability of a 2x2 Rubik's cube input. Basically another user-input error checking mechanism
+Program Description: Final Project: A Rubik's Cube solver using buffers and iterative piece solving
     
 
 Assignment Information
@@ -29,38 +29,289 @@ access to my code to another. The project I am submitting
 is my own original work.
 ===============================================================================
 """
+import math
+from datetime import datetime
+import cube_checker
+from cube_checker import validate
 
-color_occurances = {
-    "W": 0,
-    "O": 0,
-    "G": 0,
-    "R": 0,
-    "B": 0,
-    "Y": 0,
-}
+solved = False
+cube_arr = []
+setup = ""
+sticker = 0
+undo = ""
+stick = ""
+run = 0
 
-def validate(cube):
-    # consists of three main checks:
-    #   making sure only 24 stickers were entered
-    #   making sure every sticker is a valid color
-    #   making sure each color appears exactly 4 times
-    # (i could add further checks like corner orientation parity, but these are sufficient most of the time)
+#define which stickers on cube belong to which pieces
+pieces = [
+    [0, 4, 17],
+    [1, 13, 16],
+    [2, 12, 9],
+    [3, 5, 8],
+    [20, 6, 11],
+    [21, 15, 10],
+    [22, 14, 19],
+    [23, 7, 18]
+    ]
 
-    # check only entered 24 stickers
-    if len(cube) != 24:
-        print("  you have input too many / too little characters. exiting.")
-        return False
+solved_cube = [
+    'W','W','W','W','O','O','O','O','G','G','G','G','R','R','R','R','B','B','B','B','Y','Y','Y','Y']
+
+# define which stickers we are swapping with based on the input sticker
+# array is broken up into 6 layers, each representing a face of the cube
+# and 4 sub-layers representing each piece on a layer
+# so if we shoot to the 3rd sticker, we access swaps[2] since arrays are 0-indexed
+swaps = [
     
-    # loop through cube stickers and count up number of occurances of each color
-    for x in range(0,24):
-        # as a preliminary, make sure no invalid colors entered.
-        if cube[x] not in color_occurances:
-            print("  invalid color entered. exiting.")
+    [], [1, 16, 13], [2, 12, 9], [3, 8, 5],
+    [], [5, 3, 8], [6, 11, 20], [7, 23, 18],
+    [8, 5, 3], [9, 2, 12], [10, 15, 21], [11, 20, 6],
+    [12, 9, 2], [13, 1, 16], [14, 19, 22], [15, 21, 10],
+    [16, 13, 1], [], [18, 7, 23], [19, 22, 14],
+    [20, 6, 11], [21, 10, 15], [22, 14, 19], [23, 18, 7],
+    
+    ]
+
+
+def check_if_solved(arr):
+    
+    for stick in range(0,24):
+        if solved_cube[stick] != cube_arr[stick]:
+            # if any sticker om the cube does not match sticker in same location of a solved cube
+            # then the cube must be unsolved
             return False
-        color_occurances[cube[x]] += 1
+                
+            
+def handle_twisted_buffer(arr):
+    global sticker
+    global cube_arr
+    
+    # if we're here, the buffer is either twisted in place or solved
+    # how do we fix this?
+    # the way i chose is to shoot the buffer to some random unsolved piece
+    # so we have an unsolved piece in the buffer again, and continue as normal.
+    
+    for stick in range(0,24):
+        if solved_cube[stick] != cube_arr[stick] and stick != 0 and stick != 4 and stick != 17:
+            break;
+            
+    sticker = stick
+    
+    
+    #we found a sticker that is unsolved, now we iterate through the pieces array to find which piece the sticker belongs to
+    for x in range(0,8):
+        for i in range(0,3):
+            if pieces[x][i] == stick:
+                piece = x
+                break
+    
+    pieceindexes = pieces[piece]
+    solve_piece(solved_cube[pieceindexes[0]] + solved_cube[pieceindexes[1]] + solved_cube[pieceindexes[2]], cube_arr)
         
-    for key in color_occurances:
-        if color_occurances[key] != 4:
-            print("  you have entered too many / too little of one or more colors. exiting.")
-            return False
-    return True
+    
+    return
+    
+def update_cube_state(sticker):
+    
+    cube_arr[0], cube_arr[swaps[sticker][0]] = cube_arr[swaps[sticker][0]], cube_arr[0]
+    cube_arr[4], cube_arr[swaps[sticker][1]] = cube_arr[swaps[sticker][1]], cube_arr[4]
+    cube_arr[17], cube_arr[swaps[sticker][2]] = cube_arr[swaps[sticker][2]], cube_arr[17]
+    
+    return
+    
+        
+    
+def solve_piece(p, arr):
+    global run
+    global cube_arr
+    # take a certain piece on the cube as input and determine where it belongs
+    # determines the setup moves required to move the sticker to the swap location
+    global setup
+    global undo
+    global sticker
+    
+    if run == 10:
+        quit()
+
+    
+    
+    if "W" in p and "O" in p and "B" in p:
+        # buff solved, however
+        # we verified cube is not solved so that means 
+        # we have a solved buffer yet other pieces not solved
+        handle_twisted_buffer(arr)
+        return
+    elif "W" in p and "R" in p and "B" in p:
+    # change this to an array of setups and undos so can access
+        if p[0] == "W":
+            setup = "R D'"
+            undo = "D R'"
+            sticker = 1
+        elif p[0] == "R":
+            setup = "R2"
+            undo = "R2'"
+            sticker = 13
+        else:
+            setup = "R' F"
+            undo = "F' R"
+            sticker = 16
+    elif "W" in p and "R" in p and "G" in p:
+        if p[0] == "W":
+            setup = "F"
+            undo = "F'"
+            sticker = 2
+        elif p[0] == "R":
+            setup = "R'"
+            undo = "R"
+            sticker = 12
+        else:
+            setup = "F2 D"
+            undo = "D' F2"
+            sticker = 9
+    elif "W" in p and "O" in p and "G" in p:
+        if p[0] == "W":
+            setup = "L D L'"
+            undo = "L D' L'"
+            sticker = 3
+        elif p[0] == "O":
+            setup = "F2"
+            undo = "F2"
+            sticker = 5
+        else:
+            setup = "F' D"
+            undo = "D' F"
+            sticker = 8
+    elif "Y" in p and "O" in p and "G" in p:
+        if p[0] == "Y":
+            setup = "F'"
+            undo = "F"
+            sticker = 20
+        elif p[0] == "O":
+            setup = "D2 R";
+            undo = "R' D2"
+            sticker = 6
+        else:
+            setup = "D"
+            undo = "D'"
+            sticker = 11
+    elif "Y" in p and "O" in p and "B" in p:
+        if p[0] == "Y":
+            setup = "D F'"
+            undo = "F D'"
+            sticker = 23 
+        elif p[0] == "O":
+            setup = "D2";
+            undo = "D2"
+            sticker = 7
+        else:
+            setup = "D' R"
+            undo = "R' D"
+            sticker = 18
+    elif "Y" in p and "G" in p and "R" in p:
+        if p[0] == "Y":
+            setup = "D' F'"
+            undo = "F D"
+            sticker = 21
+        elif p[0] == "G":
+            setup = "F D";
+            undo = "D' F'"
+            sticker = 10
+        else:
+            setup = ""
+            undo = ""
+            sticker = 15
+    elif "Y" in p and "R" in p and "B" in p:
+        if p[0] == "Y":
+            setup = "D2 F'"
+            undo = "F D2"
+            sticker =  22
+        elif p[0] == "R":
+            setup = "R";
+            undo = "R'"
+            sticker = 14
+        else:
+            setup = "D'"
+            undo = "D"
+            sticker = 19
+       
+    # move piece to swap location, swap buffer and piece, undo setup moves.
+    print(f'  {setup} R U\' R\' U\' R U R\' F\' R U R\' U\' R\' F R {undo}')
+    update_cube_state(sticker)
+    run = run + 1
+    return
+    
+    
+
+def solve_cube(arr):
+    global sticker
+    global cube_arr
+    
+    print("")    
+    print("   solution to your cube:")
+    print("")
+    
+    # this line here actually functions as error checking algorithm #1
+    # it jumps to the check_if_solved function, and verifies we only keep solving the cube if the cube is unsolved, and exits if it is.
+    while(check_if_solved(arr) == False):
+        solve_piece(arr[pieces[0][0]] + arr[pieces[0][1]] + arr[pieces[0][2]], arr)
+        
+    endtime = datetime.now()
+    elapsed = endtime - starttime
+    print("")
+    print(f'   cube solved in {elapsed.microseconds / 1000000} seconds')
+    print("   py_cubebot by tom o'donnell")
+    print("   written for engr133 at purdue university")
+    return
+
+def main():
+    global cube_arr
+    global starttime
+    
+    starttime = datetime.now()
+    
+    cube_str = input("Input cube state (type \"help\" for help): ")
+    if cube_str == "help":
+        print(f'\n ORDER TO INPUT YOUR CUBE: ')
+        print(f' Example: WWWWOOOOGGGGRRRRBBBBYYYY')
+        
+        #print diagram of cube showing in what order to input cube's stickers
+        print(r"""
+		                 _________________ 
+		                 |       |       |
+		                 |   1   |   2   |
+		                 |-------|-------|
+		                 |   4   |   3   |
+		                 |_______|_______|
+    _________________    _________________    _________________    _________________ 
+    |       |       |    |       |       |    |       |       |    |       |       |
+	|   5   |   6   |    |   9   |   10  |	  |   13  |   14  |    |   17  |   18  |
+	|-------|-------|    |-------|-------|	  |-------|-------|    |-------|-------|
+	|   8   |   7   |    |   12  |   11  |	  |   16  |   15  |    |   20  |   19  |
+	|_______|_______|    |_______|_______|	  |_______|_______|    |_______|_______|
+                         _________________ 
+		                 |       |       |
+		                 |   21  |   22  |
+		                 |-------|-------|
+		                 |   24  |   23  |
+		                 |_______|_______|
+
+
+                """)
+    else:
+        #example could be WWWWOOOOGGGGRRRRBBBBYYYY, 
+        #split cube_str by letters to get array with each element being 1 sticker
+        cube_arr = [sticker for sticker in cube_str]
+        
+        
+        # error checking algorithm #2
+        # calls an external file equipped to check if the user's input is likely to be correct
+        # makes sure that you only entered 24 stickers, and that there's exactly 4 of each color, and so on
+        if(validate(cube_arr) == False):
+            return
+        
+        #cube array is set up, now we call solving function while passing cube array
+        solve_cube(cube_arr)
+    return
+
+if __name__ == "__main__":
+    main()
