@@ -1,5 +1,5 @@
 # cubebot_py by Tom O'Donnell
-My Final Project for Purdue University's ENGR133 course: a 2x2 solving program in Python
+My Final Project for Purdue University's ENGR133 course: a 2x2 Rubik's Cube solving program in Python
 ***
 ## How to Use:
 - Run this python program
